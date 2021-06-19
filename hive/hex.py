@@ -208,16 +208,17 @@ class Hex:
 
     @property
     def empty_neighboring_locations(self) -> Set[Location]:
-        locations = set()
+        locations: Set[Location] = set()
         for direction in Direction:
             location = self.location + direction
             if not self.hive.location_is_occupied(location):
                 locations.add(location)
         return locations
 
-    @property
     def queen_moveable_locations(self) -> Set[Location]:
-        locations = set()
+        locations: Set[Location] = set()
+        if not self.can_be_moved:
+            return locations
         for direction in Direction:
             location = self.location + direction
             if self.can_move_in_direction(
@@ -226,9 +227,10 @@ class Hex:
                 locations.add(location)
         return locations
 
-    @property
     def beetle_moveable_locations(self) -> Set[Location]:
-        locations = set()
+        locations: Set[Location] = set()
+        if not self.can_be_moved:
+            return locations
         for direction in Direction:
             location = self.location + direction
             if self.can_move_in_direction(direction):
@@ -237,9 +239,10 @@ class Hex:
             locations.add(neighbor_hex.location)
         return locations
 
-    @property
     def spider_moveable_locations(self) -> Set[Location]:
-        locations = set()
+        locations: Set[Location] = set()
+        if not self.can_be_moved:
+            return locations
         for direction_1 in Direction:
             if not self.can_move_in_direction(direction_1):
                 continue
@@ -260,13 +263,54 @@ class Hex:
             self.move_in_direction(-direction_1)
         return locations
 
+    def grasshopper_moveable_locations(self) -> Set[Location]:
+        locations: Set[Location] = set()
+        if not self.can_be_moved:
+            return locations
+        for direction in Direction:
+            neighboring_location = self.location + direction
+            if not self.hive.location_is_occupied(neighboring_location):
+                continue
+            next_location = neighboring_location
+            while True:
+                next_location += direction
+                if not self.hive.location_is_occupied(next_location):
+                    locations.add(next_location)
+                    break
+        return locations
+
+    def ant_moveable_locations(self) -> Set[Location]:
+        locations: Set[Location] = set()
+        if not self.can_be_moved:
+            return locations
+        initial_location: Location = self.location
+        last_direction = None
+        while True:
+            for direction in Direction:
+                if last_direction == -direction:
+                    continue
+                if self.can_move_in_direction(direction):
+                    break
+            if self.location + direction == initial_location:
+                break
+            self.move_in_direction(direction)
+            last_direction = direction
+            if self.location in locations:
+                break
+            locations.add(self.location)
+        self.hive.remove_hex(self)
+        self.hive.place_hex(self, initial_location)
+        return locations
+
     @property
     def moveable_locations(self) -> Set[Location]:
         return {
             Piece.QUEEN: self.queen_moveable_locations,
             Piece.BEETLE: self.beetle_moveable_locations,
             Piece.SPIDER: self.spider_moveable_locations,
-        }[self.piece]
+            Piece.GRASSHOPPER: self.grasshopper_moveable_locations,
+            Piece.ANT: self.ant_moveable_locations,
+        }[self.piece]()
 
     def __repr__(self) -> str:
         return (

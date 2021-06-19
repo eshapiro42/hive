@@ -33,7 +33,7 @@ class Draw:
     def __init__(self, hive: Hive):
         self.hive = hive
         self.radius = 100
-        self.selected_hex = None
+        self.selected_hex: Optional[Hex] = None
 
     def draw_hex(self, hex: Hex):
         center_x, center_y = self.center
@@ -99,7 +99,8 @@ class Draw:
         for location in hex.moveable_locations:
             self.highlight_hex_at_location(location, BLUE)
 
-    def mouse_position_to_location(self, mouse_x, mouse_y):
+    def mouse_position_to_location(self, mouse_position):
+        mouse_x, mouse_y = mouse_position
         center_x, center_y = self.center
         mouse_x -= center_x
         mouse_y -= center_y
@@ -109,8 +110,8 @@ class Draw:
         location = Location.round(x, y, z)
         return location
 
-    def mouse_position_to_hex(self, mouse_x, mouse_y):
-        location = self.mouse_position_to_location(mouse_x, mouse_y)
+    def mouse_position_to_hex(self, mouse_position):
+        location = self.mouse_position_to_location(mouse_position)
         return self.hive.get_hex_by_location(location)
 
     def draw_hive(self):
@@ -131,12 +132,30 @@ class Draw:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     left_click = pygame.mouse.get_pressed()[0]
                     if left_click:
-                        mouse_x, mouse_y = pygame.mouse.get_pos()
-                        try:
-                            hex = self.mouse_position_to_hex(mouse_x, mouse_y)
-                            self.selected_hex = hex
-                        except HException:
-                            self.selected_hex = None
+                        mouse_position = pygame.mouse.get_pos()
+                        if self.selected_hex is None:
+                            try:
+                                self.selected_hex = self.mouse_position_to_hex(
+                                    mouse_position
+                                )
+                            except HException:
+                                pass
+                        else:
+                            selected_location = self.mouse_position_to_location(
+                                mouse_position
+                            )
+                            if self.selected_hex.location == selected_location:
+                                self.selected_hex = None
+                            else:
+                                if (
+                                    selected_location
+                                    in self.selected_hex.moveable_locations
+                                ):
+                                    self.hive.remove_hex(self.selected_hex)
+                                    self.hive.place_hex(
+                                        self.selected_hex, selected_location
+                                    )
+                                    self.selected_hex = None
 
             pressed = pygame.key.get_pressed()
 
