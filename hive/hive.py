@@ -7,13 +7,14 @@ from .hex import (
     Hex,
 )
 from .draw import Draw
-from typing import Dict, Set, Tuple, List, Optional
+from collections import defaultdict
+from typing import Dict, Set, List
 from threading import Thread
 
 
 class Hive:
     def __init__(self):
-        self.location_to_hex: Dict[Location, Hex] = {}
+        self.location_to_hex: Dict[Location, list[Hex]] = defaultdict(list)
         self.hex_to_location: Dict[Hex, Location] = {}
         self.drawer: Draw = Draw(self)
         self.draw_thread = Thread(target=self.drawer.draw_hive, daemon=True)
@@ -28,9 +29,9 @@ class Hive:
     def place_hex(self, hex: Hex, location: Location):
         if hex in self.hex_to_location:
             raise HException(f"Hex {hex} is already on the grid.")
-        if location in self.location_to_hex:
+        if self.location_to_hex[location] and hex.piece != Piece.BEETLE:
             raise HException(f"There is already a hex at location {location}.")
-        self.location_to_hex[location] = hex
+        self.location_to_hex[location].append(hex)
         self.hex_to_location[hex] = location
 
     def move_hex(self, hex: Hex, direction: Direction):
@@ -42,11 +43,15 @@ class Hive:
         self.remove_hex(hex)
         self.place_hex(hex, old_location + direction)
 
-    def get_hex_by_location(self, location: Location) -> Hex:
-        try:
-            return self.location_to_hex[location]
-        except KeyError:
+    def get_all_hexes_at_location(self, location: Location) -> List[Hex]:
+        hexes_at_location = self.location_to_hex[location]
+        if hexes_at_location:
+            return hexes_at_location
+        else:
             raise HException(f"No hex was not found at location {location}.")
+
+    def get_top_hex_by_location(self, location: Location) -> Hex:
+        return self.get_all_hexes_at_location(location)[-1]
 
     def get_location_of_hex(self, hex: Hex) -> Location:
         try:
@@ -57,35 +62,44 @@ class Hive:
     def remove_hex(self, hex: Hex):
         location = self.get_location_of_hex(hex)
         del self.hex_to_location[hex]
-        del self.location_to_hex[location]
-
-    def remove_hex_by_location(self, location: Location):
-        hex = self.get_hex_by_location(location)
-        del self.hex_to_location[hex]
-        del self.location_to_hex[location]
+        if hex == self.location_to_hex[location][-1]:
+            self.location_to_hex[location].pop()
+        else:
+            raise HException(
+                f"Hex {hex} is beneath hex {self.location_to_hex[location][-1]} and cannot be removed."
+            )
 
     def location_is_occupied(self, location: Location):
         try:
-            self.get_hex_by_location(location)
+            self.get_top_hex_by_location(location)
             return True
         except HException:
             return False
 
     @property
-    def possible_locations(self) -> Set[Location]:
+    def empty_neighboring_locations(self) -> Set[Location]:
         locations = set()
         for hex in self.hex_to_location.keys():
             locations |= hex.empty_neighboring_locations
         return locations
 
     @property
-    def all_hexes(self) -> set:
+    def all_hexes(self) -> Set[Hex]:
         return set(self.hex_to_location.keys())
 
     @property
+    def all_top_level_hexes(self) -> Set[Hex]:
+        hexes = set()
+        for hex in self.all_hexes:
+            if hex.is_on_top:
+                hexes.add(hex)
+        return hexes
+
+    @property
     def connected_hexes(self) -> set:
+        """Breadth first search"""
         visited_hexes = set()
-        start_hex = list(self.hex_to_location.keys())[0]
+        start_hex = list(self.all_top_level_hexes)[0]
         connected_hexes = start_hex.neighbors
         while True:
             if connected_hexes == visited_hexes:
@@ -98,7 +112,7 @@ class Hive:
 
     @property
     def is_connected(self) -> bool:
-        return self.all_hexes == self.connected_hexes
+        return self.all_top_level_hexes == self.connected_hexes
 
     # @property
     # def offset_grid_graph(self) -> Dict[Hex, Tuple[int, int]]:

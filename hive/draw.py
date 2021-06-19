@@ -17,7 +17,7 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 
-SCROLL_SPEED = 2
+SCROLL_SPEED = 4
 ZOOM_SPEED = 2
 
 IMAGES = {
@@ -112,7 +112,7 @@ class Draw:
 
     def mouse_position_to_hex(self, mouse_position):
         location = self.mouse_position_to_location(mouse_position)
-        return self.hive.get_hex_by_location(location)
+        return self.hive.get_top_hex_by_location(location)
 
     def draw_hive(self):
         pygame.init()

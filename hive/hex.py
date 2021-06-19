@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
 from math import sqrt
-from typing import List, Optional, Set, Tuple, TYPE_CHECKING
+from typing import List, NewType, Optional, Set, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .hive import Hive
@@ -145,7 +145,7 @@ class Hex:
 
     def get_neighbor(self, direction: Direction) -> Optional[Hex]:
         try:
-            return self.hive.get_hex_by_location(self.location + direction)
+            return self.hive.get_top_hex_by_location(self.location + direction)
         except HException:
             pass
 
@@ -161,6 +161,10 @@ class Hex:
     @property
     def num_neighbors(self) -> int:
         return len(self.neighbors)
+
+    @property
+    def is_on_top(self) -> bool:
+        return self == self.hive.get_top_hex_by_location(self.location)
 
     @property
     def can_be_moved(self) -> bool:
@@ -180,7 +184,7 @@ class Hex:
         old_neighbors = self.neighbors
         # If there's already a hex at the target location, the answer is no
         try:
-            self.hive.get_hex_by_location(new_location)
+            self.hive.get_top_hex_by_location(new_location)
             return False
         except HException:
             pass
@@ -194,6 +198,9 @@ class Hex:
             # Check whether the new and old hex have two neighbors in common
             # This indicates the hex cannot be slid into place
             if len(new_neighbors & old_neighbors) >= 2:
+                return False
+            # Require that the new and old hex have a neighbor in common
+            if len(new_neighbors & old_neighbors) < 1 and self.piece != Piece.BEETLE:
                 return False
             return True
         finally:
