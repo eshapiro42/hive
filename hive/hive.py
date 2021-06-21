@@ -44,14 +44,13 @@ class Hive:
         self.place_hex(hex, old_location + direction)
 
     def get_all_hexes_at_location(self, location: Location) -> List[Hex]:
-        hexes_at_location = self.location_to_hex[location]
-        if hexes_at_location:
-            return hexes_at_location
-        else:
-            raise HException(f"No hex was not found at location {location}.")
+        return self.location_to_hex[location]
 
     def get_top_hex_by_location(self, location: Location) -> Hex:
-        return self.get_all_hexes_at_location(location)[-1]
+        try:
+            return self.get_all_hexes_at_location(location)[-1]
+        except IndexError:
+            raise HException(f"No hex was found at location {location}.")
 
     def get_location_of_hex(self, hex: Hex) -> Location:
         try:

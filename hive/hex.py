@@ -167,6 +167,20 @@ class Hex:
         return self == self.hive.get_top_hex_by_location(self.location)
 
     @property
+    def hexes_beneath(self) -> List[Hex]:
+        hexes_at_location = self.hive.get_all_hexes_at_location(self.location)
+        index = hexes_at_location.index(self)
+        return hexes_at_location[:index]
+
+    @property
+    def num_pieces_beneath(self) -> int:
+        return len(self.hexes_beneath)
+
+    @property
+    def has_pieces_beneath(self) -> bool:
+        return self.num_pieces_beneath != 0
+
+    @property
     def can_be_moved(self) -> bool:
         location = self.location
         self.hive.remove_hex(self)
@@ -182,6 +196,7 @@ class Hex:
         old_location = self.location
         new_location = self.location + direction
         old_neighbors = self.neighbors
+        has_pieces_beneath = self.has_pieces_beneath
         # If there's already a hex at the target location, the answer is no
         try:
             self.hive.get_top_hex_by_location(new_location)
@@ -197,7 +212,9 @@ class Hex:
                 return False
             # Check whether the new and old hex have two neighbors in common
             # This indicates the hex cannot be slid into place
-            if len(new_neighbors & old_neighbors) >= 2:
+            if len(new_neighbors & old_neighbors) >= 2 and not (
+                self.piece == Piece.BEETLE and has_pieces_beneath
+            ):
                 return False
             # Require that the new and old hex have a neighbor in common
             if len(new_neighbors & old_neighbors) < 1 and self.piece != Piece.BEETLE:
